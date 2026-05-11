@@ -18,6 +18,10 @@ import {
   CheckCircle2,
   AlertTriangle,
   RotateCcw,
+  Calculator,
+  PiggyBank,
+  Landmark,
+  Receipt,
 } from 'lucide-react';
 
 /* ------------------------------------------------------------------ */
@@ -34,12 +38,21 @@ const DEFAULTS = {
   eveningCustomers: 30,
   grantIncome: 3000,
   cogsPercentage: 30,
-  // Fixed costs
-  directorSalary: 4800,
+  // Fixed costs (monthly)
   staffWages: 3000,
   rent: 2000,
   utilities: 800,
   insuranceTech: 500,
+  // Director payroll (annual figures unless noted)
+  directorGrossSalary: 50000,
+  employerPensionRate: 3,
+  pensionThreshold: 6240,
+  employerNIRate: 15,
+  niThreshold: 5000,
+  employmentAllowance: 10500,
+  // VAT
+  vatThreshold: 90000,
+  vatRate: 20,
 };
 
 /* ------------------------------------------------------------------ */
@@ -172,11 +185,83 @@ const OTHER_LEVERS = [
 ];
 
 const FIXED_COSTS = [
-  { key: 'directorSalary', label: 'Director salary', icon: Briefcase },
   { key: 'staffWages', label: 'Staff wages', icon: Users },
   { key: 'rent', label: 'Rent', icon: Home },
   { key: 'utilities', label: 'Utilities', icon: Zap },
   { key: 'insuranceTech', label: 'Insurance & technology', icon: ShieldCheck },
+];
+
+const PAYROLL_FIELDS = [
+  {
+    key: 'directorGrossSalary',
+    label: 'Director gross salary',
+    helper: 'Annual',
+    icon: Briefcase,
+    step: 500,
+  },
+  {
+    key: 'employerPensionRate',
+    label: 'Employer pension rate',
+    helper: 'Auto-enrolment %',
+    icon: PiggyBank,
+    prefix: null,
+    suffix: '%',
+    step: 0.5,
+    max: 100,
+    decimals: 1,
+  },
+  {
+    key: 'pensionThreshold',
+    label: 'Pension qualifying threshold',
+    helper: 'Annual lower band',
+    icon: PiggyBank,
+    step: 100,
+  },
+  {
+    key: 'employerNIRate',
+    label: 'Employer NI rate',
+    helper: 'Secondary Class 1',
+    icon: Percent,
+    prefix: null,
+    suffix: '%',
+    step: 0.5,
+    max: 100,
+    decimals: 1,
+  },
+  {
+    key: 'niThreshold',
+    label: 'NI secondary threshold',
+    helper: 'Annual',
+    icon: Landmark,
+    step: 100,
+  },
+  {
+    key: 'employmentAllowance',
+    label: 'Employment allowance',
+    helper: 'Annual offset against NI',
+    icon: Landmark,
+    step: 100,
+  },
+];
+
+const VAT_FIELDS = [
+  {
+    key: 'vatThreshold',
+    label: 'VAT registration threshold',
+    helper: 'Annual taxable turnover',
+    icon: Receipt,
+    step: 1000,
+  },
+  {
+    key: 'vatRate',
+    label: 'VAT rate',
+    helper: 'Standard rate',
+    icon: Percent,
+    prefix: null,
+    suffix: '%',
+    step: 1,
+    max: 100,
+  },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -354,25 +439,42 @@ function LeverInput({ lever, value, onChange }) {
 /* ------------------------------------------------------------------ */
 
 function FixedCostRow({ cost, value, onChange }) {
-  const { key, label, icon: Icon } = cost;
+  const { key, label, icon: Icon, helper } = cost;
+  const prefix = cost.prefix === null ? null : (cost.prefix ?? '£');
+  const suffix = cost.suffix;
+  const step = cost.step ?? 50;
+  const max = cost.max;
+  const decimals = cost.decimals ?? 0;
   const id = `${key}-input`;
+  const descId = helper ? `${key}-desc` : undefined;
   return (
     <div className="flex items-center justify-between gap-3 py-2">
       <label
         htmlFor={id}
-        className="flex items-center gap-2 text-sm font-medium text-slate-800"
+        className="flex flex-1 items-start gap-2 text-sm font-medium text-slate-800"
       >
-        <Icon aria-hidden="true" className="h-4 w-4 text-slate-500" />
-        {label}
+        <Icon aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" />
+        <span className="flex flex-col">
+          <span>{label}</span>
+          {helper && (
+            <span id={descId} className="text-xs font-normal text-slate-500">
+              {helper}
+            </span>
+          )}
+        </span>
       </label>
-      <div className="w-36">
+      <div className="w-36 shrink-0">
         <NumberField
           id={id}
           value={value}
           onChange={onChange}
           min={0}
-          step={50}
-          prefix="£"
+          max={max}
+          step={step}
+          decimals={decimals}
+          prefix={prefix}
+          suffix={suffix}
+          ariaDescribedBy={descId}
         />
       </div>
     </div>
@@ -402,6 +504,9 @@ function PLRow({ label, value, tone = 'neutral', emphasis = 'normal', indent }) 
       : emphasis === 'final'
         ? 'bg-slate-100'
         : '';
+  const renderAmount = (n) =>
+    n < 0 ? `−${fmtGBP(Math.abs(n))}` : fmtGBP(n);
+  const annual = value * 12;
   return (
     <tr className={rowBg}>
       <th
@@ -410,8 +515,15 @@ function PLRow({ label, value, tone = 'neutral', emphasis = 'normal', indent }) 
       >
         {label}
       </th>
-      <td className={`py-2 pl-3 pr-4 text-right text-sm tabular-nums ${weight} ${toneClass}`}>
-        {value < 0 ? `−${fmtGBP(Math.abs(value))}` : fmtGBP(value)}
+      <td
+        className={`py-2 pl-3 pr-3 text-right text-sm tabular-nums ${weight} ${toneClass}`}
+      >
+        {renderAmount(value)}
+      </td>
+      <td
+        className={`py-2 pl-3 pr-4 text-right text-sm tabular-nums ${weight} ${toneClass}`}
+      >
+        {renderAmount(annual)}
       </td>
     </tr>
   );
@@ -431,28 +543,67 @@ export default function FinancialDashboard() {
 
   /* ---- Calculations ---------------------------------------------- */
   const calc = useMemo(() => {
+    // Revenue
     const daytimeRevenue =
       model.daytimeSpend * model.dailyCustomers * model.operatingDays;
     const eveningRevenue =
       model.eveningSpend * model.eveningCustomers * model.eveningEvents;
-    const tradingRevenue = daytimeRevenue + eveningRevenue;
-    const totalGrossRevenue = tradingRevenue + model.grantIncome;
-    const cogsAmount = tradingRevenue * (model.cogsPercentage / 100);
+    const monthlyTradingRevenue = daytimeRevenue + eveningRevenue;
+    const annualizedTradingRevenue = monthlyTradingRevenue * 12;
+
+    // VAT — only payable once annualised turnover crosses the threshold.
+    const isVatRegistered = annualizedTradingRevenue > model.vatThreshold;
+    const monthlyVatPayable = isVatRegistered
+      ? monthlyTradingRevenue -
+        monthlyTradingRevenue / (1 + model.vatRate / 100)
+      : 0;
+
+    const netTradingRevenue = monthlyTradingRevenue - monthlyVatPayable;
+    const totalGrossRevenue = netTradingRevenue + model.grantIncome;
+    const cogsAmount = netTradingRevenue * (model.cogsPercentage / 100);
     const grossProfit = totalGrossRevenue - cogsAmount;
-    const totalOverheads =
-      model.directorSalary +
-      model.staffWages +
-      model.rent +
-      model.utilities +
-      model.insuranceTech;
+
+    // Director payroll (annual figures → monthly cost)
+    const monthlyGrossSalary = model.directorGrossSalary / 12;
+
+    const annualPensionCost =
+      Math.max(0, model.directorGrossSalary - model.pensionThreshold) *
+      (model.employerPensionRate / 100);
+    const monthlyPensionCost = annualPensionCost / 12;
+
+    const annualNiCost =
+      Math.max(0, model.directorGrossSalary - model.niThreshold) *
+      (model.employerNIRate / 100);
+    const payableAnnualNi = Math.max(0, annualNiCost - model.employmentAllowance);
+    const monthlyNiCost = payableAnnualNi / 12;
+
+    const totalDirectorCost =
+      monthlyGrossSalary + monthlyPensionCost + monthlyNiCost;
+
+    const otherOverheads =
+      model.staffWages + model.rent + model.utilities + model.insuranceTech;
+    const totalOverheads = totalDirectorCost + otherOverheads;
     const netProfit = grossProfit - totalOverheads;
+
     return {
       daytimeRevenue,
       eveningRevenue,
-      tradingRevenue,
+      monthlyTradingRevenue,
+      annualizedTradingRevenue,
+      isVatRegistered,
+      monthlyVatPayable,
+      netTradingRevenue,
       totalGrossRevenue,
       cogsAmount,
       grossProfit,
+      monthlyGrossSalary,
+      annualPensionCost,
+      monthlyPensionCost,
+      annualNiCost,
+      payableAnnualNi,
+      monthlyNiCost,
+      totalDirectorCost,
+      otherOverheads,
       totalOverheads,
       netProfit,
     };
@@ -585,6 +736,15 @@ export default function FinancialDashboard() {
                     />
                   </li>
                 ))}
+                <li className="flex items-center justify-between py-2 pt-3 text-sm text-slate-700">
+                  <span className="flex items-center gap-2">
+                    <Briefcase aria-hidden="true" className="h-4 w-4 text-slate-500" />
+                    Director cost (calculated)
+                  </span>
+                  <span className="tabular-nums font-medium text-slate-900">
+                    {fmtGBP(calc.totalDirectorCost)}
+                  </span>
+                </li>
                 <li className="flex items-center justify-between py-3 pt-4 text-sm font-semibold text-slate-900">
                   <span>Total overheads</span>
                   <span className="tabular-nums text-rose-700">
@@ -592,6 +752,75 @@ export default function FinancialDashboard() {
                   </span>
                 </li>
               </ul>
+            </section>
+
+            <section
+              aria-labelledby="tax-payroll-heading"
+              className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
+            >
+              <div className="mb-3 flex items-center gap-2">
+                <Calculator aria-hidden="true" className="h-5 w-5 text-indigo-600" />
+                <h2
+                  id="tax-payroll-heading"
+                  className="text-lg font-semibold text-slate-900"
+                >
+                  Tax &amp; payroll settings
+                </h2>
+              </div>
+              <p className="mb-4 text-sm text-slate-600">
+                UK defaults shown. Annual figures are pro-rated to monthly cost.
+              </p>
+
+              <fieldset>
+                <legend className="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-slate-500">
+                  <Briefcase aria-hidden="true" className="h-4 w-4 text-slate-500" />
+                  Director payroll
+                </legend>
+                <ul className="divide-y divide-slate-200">
+                  {PAYROLL_FIELDS.map((field) => (
+                    <li key={field.key}>
+                      <FixedCostRow
+                        cost={field}
+                        value={model[field.key]}
+                        onChange={updateField(field.key)}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </fieldset>
+
+              <hr className="my-5 border-slate-200" />
+
+              <fieldset>
+                <legend className="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-slate-500">
+                  <Receipt aria-hidden="true" className="h-4 w-4 text-slate-500" />
+                  VAT
+                </legend>
+                <ul className="divide-y divide-slate-200">
+                  {VAT_FIELDS.map((field) => (
+                    <li key={field.key}>
+                      <FixedCostRow
+                        cost={field}
+                        value={model[field.key]}
+                        onChange={updateField(field.key)}
+                      />
+                    </li>
+                  ))}
+                </ul>
+                <p
+                  className={`mt-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${
+                    calc.isVatRegistered
+                      ? 'bg-amber-50 text-amber-800'
+                      : 'bg-emerald-50 text-emerald-800'
+                  }`}
+                  aria-live="polite"
+                >
+                  <Receipt aria-hidden="true" className="h-3.5 w-3.5" />
+                  {calc.isVatRegistered
+                    ? `Annualised trading revenue ${fmtGBP(calc.annualizedTradingRevenue)} — VAT registration required`
+                    : `Annualised trading revenue ${fmtGBP(calc.annualizedTradingRevenue)} — below VAT threshold`}
+                </p>
+              </fieldset>
             </section>
           </div>
 
@@ -667,16 +896,36 @@ export default function FinancialDashboard() {
                   <h3 className="text-base font-semibold text-slate-900">
                     Profit &amp; loss breakdown
                   </h3>
-                  <p className="text-xs text-slate-500">All figures shown monthly.</p>
+                  <p className="text-xs text-slate-500">
+                    Monthly and annualised figures, side by side.
+                  </p>
                 </div>
                 <table className="w-full">
                   <caption className="sr-only">
-                    Monthly profit and loss breakdown derived from the inputs.
+                    Profit and loss breakdown derived from the inputs, shown in
+                    pounds sterling. The second column annualises each monthly
+                    figure.
                   </caption>
-                  <thead className="sr-only">
-                    <tr>
-                      <th scope="col">Line item</th>
-                      <th scope="col">Amount in GBP</th>
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50/60">
+                      <th
+                        scope="col"
+                        className="py-2 pl-3 pr-3 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500"
+                      >
+                        Line item
+                      </th>
+                      <th
+                        scope="col"
+                        className="py-2 pl-3 pr-3 text-right text-[11px] font-semibold uppercase tracking-wide text-slate-500"
+                      >
+                        Monthly
+                      </th>
+                      <th
+                        scope="col"
+                        className="py-2 pl-3 pr-4 text-right text-[11px] font-semibold uppercase tracking-wide text-slate-500"
+                      >
+                        Annual
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -689,6 +938,21 @@ export default function FinancialDashboard() {
                       label="Evening revenue"
                       value={calc.eveningRevenue}
                       tone="positive"
+                    />
+                    <PLRow
+                      label={
+                        calc.isVatRegistered
+                          ? `VAT payable (${model.vatRate}%)`
+                          : 'VAT payable (below threshold)'
+                      }
+                      value={-calc.monthlyVatPayable}
+                      tone="negative"
+                      indent
+                    />
+                    <PLRow
+                      label="Net trading revenue"
+                      value={calc.netTradingRevenue}
+                      emphasis="subtotal"
                     />
                     <PLRow
                       label="Grant income"
@@ -713,8 +977,51 @@ export default function FinancialDashboard() {
                       tone={calc.grossProfit >= 0 ? 'positive' : 'negative'}
                     />
                     <PLRow
+                      label="Director gross salary"
+                      value={-calc.monthlyGrossSalary}
+                      tone="negative"
+                      indent
+                    />
+                    <PLRow
+                      label="Employer pension"
+                      value={-calc.monthlyPensionCost}
+                      tone="negative"
+                      indent
+                    />
+                    <PLRow
+                      label="Employer NI"
+                      value={-calc.monthlyNiCost}
+                      tone="negative"
+                      indent
+                    />
+                    <PLRow
+                      label="Staff wages"
+                      value={-model.staffWages}
+                      tone="negative"
+                      indent
+                    />
+                    <PLRow
+                      label="Rent"
+                      value={-model.rent}
+                      tone="negative"
+                      indent
+                    />
+                    <PLRow
+                      label="Utilities"
+                      value={-model.utilities}
+                      tone="negative"
+                      indent
+                    />
+                    <PLRow
+                      label="Insurance & technology"
+                      value={-model.insuranceTech}
+                      tone="negative"
+                      indent
+                    />
+                    <PLRow
                       label="Total overheads"
                       value={-calc.totalOverheads}
+                      emphasis="subtotal"
                       tone="negative"
                     />
                     <PLRow
