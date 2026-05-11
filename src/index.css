@@ -1,0 +1,92 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-slate-100 text-slate-900 antialiased;
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+      'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  }
+  :focus-visible {
+    @apply outline-none ring-2 ring-offset-2 ring-emerald-600 ring-offset-white;
+  }
+}
+
+/* Native range slider styling */
+input[type='range'].slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: linear-gradient(
+    to right,
+    rgb(5 150 105) 0%,
+    rgb(5 150 105) var(--progress, 0%),
+    rgb(226 232 240) var(--progress, 0%),
+    rgb(226 232 240) 100%
+  );
+  cursor: pointer;
+}
+input[type='range'].slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 1.25rem;
+  width: 1.25rem;
+  border-radius: 9999px;
+  background-color: rgb(255 255 255);
+  border: 2px solid rgb(5 150 105);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.1);
+  cursor: pointer;
+  transition: transform 120ms ease;
+}
+input[type='range'].slider::-moz-range-thumb {
+  height: 1.25rem;
+  width: 1.25rem;
+  border-radius: 9999px;
+  background-color: rgb(255 255 255);
+  border: 2px solid rgb(5 150 105);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.1);
+  cursor: pointer;
+  transition: transform 120ms ease;
+}
+input[type='range'].slider:hover::-webkit-slider-thumb {
+  transform: scale(1.1);
+}
+input[type='range'].slider:hover::-moz-range-thumb {
+  transform: scale(1.1);
+}
+input[type='range'].slider:focus-visible {
+  outline: none;
+}
+input[type='range'].slider:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 4px rgb(5 150 105 / 0.25);
+}
+input[type='range'].slider:focus-visible::-moz-range-thumb {
+  box-shadow: 0 0 0 4px rgb(5 150 105 / 0.25);
+}
+
+/* Hide number-input spinners for a cleaner look (keyboard arrows still work) */
+input[type='number'].no-spin::-webkit-outer-spin-button,
+input[type='number'].no-spin::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'].no-spin {
+  -moz-appearance: textfield;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

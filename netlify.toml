@@ -1,0 +1,9 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# SPA-friendly: keep deep links working if you add a router later
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
