@@ -22,6 +22,7 @@ import {
   PiggyBank,
   Landmark,
   Receipt,
+  Download,
 } from 'lucide-react';
 
 /* ------------------------------------------------------------------ */
@@ -541,6 +542,110 @@ export default function FinancialDashboard() {
 
   const reset = () => setModel(DEFAULTS);
 
+  /* ---- CSV export ------------------------------------------------ */
+  const exportToCSV = () => {
+    // Snapshot the values at the moment of click. `model` and `calc` are
+    // captured from the current render, so they already reflect the latest
+    // slider / number-input positions (including dynamically derived figures
+    // such as VAT payable and employer NI).
+    const m = model;
+    const c = calc;
+
+    const escapeCell = (value) => {
+      const str = String(value ?? '');
+      // RFC 4180-style quoting: wrap in double quotes and escape internal quotes
+      if (/[",\n\r]/.test(str)) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    const round2 = (n) => Math.round(Number(n) * 100) / 100;
+
+    const sections = [
+      {
+        heading: 'Inputs - Revenue Levers',
+        rows: [
+          ['Average daytime spend per customer (GBP)', round2(m.daytimeSpend)],
+          ['Daily customers', m.dailyCustomers],
+          ['Operating days per month', m.operatingDays],
+          ['Average evening spend per guest (GBP)', round2(m.eveningSpend)],
+          ['Guests per evening event', m.eveningCustomers],
+          ['Evening events per month', m.eveningEvents],
+          ['Grant income (GBP, monthly)', round2(m.grantIncome)],
+          ['Cost of goods sold (%)', m.cogsPercentage],
+        ],
+      },
+      {
+        heading: 'Inputs - Fixed Costs',
+        rows: [
+          ['Staff wages (GBP, monthly)', round2(m.staffWages)],
+          ['Rent (GBP, monthly)', round2(m.rent)],
+          ['Utilities (GBP, monthly)', round2(m.utilities)],
+          ['Insurance & technology (GBP, monthly)', round2(m.insuranceTech)],
+        ],
+      },
+      {
+        heading: 'Inputs - Tax & Payroll',
+        rows: [
+          ['Director gross salary (GBP, annual)', round2(m.directorGrossSalary)],
+          ['Employer pension rate (%)', m.employerPensionRate],
+          ['Pension qualifying threshold (GBP, annual)', round2(m.pensionThreshold)],
+          ['Employer NI rate (%)', m.employerNIRate],
+          ['NI secondary threshold (GBP, annual)', round2(m.niThreshold)],
+          ['Employment allowance (GBP, annual)', round2(m.employmentAllowance)],
+          ['VAT registration threshold (GBP, annual)', round2(m.vatThreshold)],
+          ['VAT rate (%)', m.vatRate],
+        ],
+      },
+      {
+        heading: 'Outputs - Monthly P&L',
+        rows: [
+          ['Daytime revenue (GBP)', round2(c.daytimeRevenue)],
+          ['Evening revenue (GBP)', round2(c.eveningRevenue)],
+          ['Monthly trading revenue (GBP)', round2(c.monthlyTradingRevenue)],
+          ['Annualised trading revenue (GBP)', round2(c.annualizedTradingRevenue)],
+          ['VAT registered', c.isVatRegistered ? 'Yes' : 'No'],
+          ['VAT payable (GBP, monthly)', round2(c.monthlyVatPayable)],
+          ['Net trading revenue (GBP, monthly)', round2(c.netTradingRevenue)],
+          ['Grant income (GBP, monthly)', round2(m.grantIncome)],
+          ['Total gross revenue (GBP, monthly)', round2(c.totalGrossRevenue)],
+          ['Cost of goods sold (GBP, monthly)', round2(c.cogsAmount)],
+          ['Gross profit (GBP, monthly)', round2(c.grossProfit)],
+          ['Director gross salary (GBP, monthly)', round2(c.monthlyGrossSalary)],
+          ['Employer pension (GBP, monthly)', round2(c.monthlyPensionCost)],
+          ['Employer NI (GBP, monthly)', round2(c.monthlyNiCost)],
+          ['Total director cost (GBP, monthly)', round2(c.totalDirectorCost)],
+          ['Total overheads (GBP, monthly)', round2(c.totalOverheads)],
+          ['Net profit (GBP, monthly)', round2(c.netProfit)],
+          ['Net profit (GBP, annualised)', round2(c.netProfit * 12)],
+        ],
+      },
+    ];
+
+    const lines = [['Category / Item', 'Value'].map(escapeCell).join(',')];
+    sections.forEach((section, idx) => {
+      if (idx > 0) lines.push('');
+      lines.push([section.heading, ''].map(escapeCell).join(','));
+      section.rows.forEach(([label, value]) => {
+        lines.push([label, value].map(escapeCell).join(','));
+      });
+    });
+    // BOM + CRLF for Excel compatibility on Windows
+    const csv = '\uFEFF' + lines.join('\r\n') + '\r\n';
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'cafe-scenario-snapshot.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    // Defer revoke so the browser has time to start the download
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  };
+
   /* ---- Calculations ---------------------------------------------- */
   const calc = useMemo(() => {
     // Revenue
@@ -831,6 +936,16 @@ export default function FinancialDashboard() {
             className="lg:col-span-5"
           >
             <div className="lg:sticky lg:top-6 space-y-4">
+              {/* Export */}
+              <button
+                type="button"
+                onClick={exportToCSV}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-100"
+              >
+                <Download aria-hidden="true" className="h-4 w-4" />
+                Export snapshot to CSV
+              </button>
+
               {/* Bottom line card */}
               <div
                 className={`rounded-2xl border p-6 shadow-sm transition-colors ${
